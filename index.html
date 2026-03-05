@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Releases</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=gg+sans:wght@400;500;600;700&display=swap');
+
+  :root {
+    --bg-primary: #313338;
+    --bg-secondary: #2b2d31;
+    --bg-tertiary: #1e1f22;
+    --bg-message-hover: #2e3035;
+    --text-primary: #dbdee1;
+    --text-secondary: #b5bac1;
+    --text-muted: #80848e;
+    --text-link: #00a8fc;
+    --accent: #5865f2;
+    --accent-hover: #4752c4;
+    --border: #3f4147;
+    --scrollbar: #1e1f22;
+    --scrollbar-thumb: #3f4147;
+    --mention-bg: rgba(88,101,242,0.1);
+    --mention-border: #5865f2;
+    --green: #23a559;
+    --yellow: #f0b232;
+    --red: #da3633;
+    --channel-header: #313338;
+    --attachment-bg: #2b2d31;
+    --embed-border: #4f545c;
+    --font: 'gg sans', 'Noto Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: var(--font);
+    font-size: 16px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ─── Channel Header ─── */
+  #channel-header {
+    background: var(--channel-header);
+    border-bottom: 1px solid var(--bg-tertiary);
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+    z-index: 10;
+    box-shadow: 0 1px 0 rgba(0,0,0,0.2);
+  }
+
+  #channel-header .hash {
+    color: var(--text-muted);
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  #channel-header .channel-name {
+    font-weight: 600;
+    font-size: 16px;
+    color: var(--text-primary);
+  }
+
+  #channel-header .channel-topic {
+    color: var(--text-muted);
+    font-size: 13px;
+    margin-left: 8px;
+    padding-left: 8px;
+    border-left: 1px solid var(--border);
+  }
+
+  #channel-header .msg-count {
+    margin-left: auto;
+    font-size: 12px;
+    color: var(--text-muted);
+    background: var(--bg-secondary);
+    padding: 3px 8px;
+    border-radius: 10px;
+  }
+
+  /* ─── Messages Container ─── */
+  #messages-container {
+    flex: 1;
+    overflow-y: scroll;
+    overflow-x: hidden;
+    padding: 16px 0 20px;
+    scroll-behavior: smooth;
+  }
+
+  #messages-container::-webkit-scrollbar { width: 8px; }
+  #messages-container::-webkit-scrollbar-track { background: var(--scrollbar); }
+  #messages-container::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 4px; }
+
+  /* ─── Load More ─── */
+  #load-more-btn {
+    display: block;
+    margin: 8px auto 16px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 20px;
+    font-size: 14px;
+    font-family: var(--font);
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  #load-more-btn:hover { background: var(--accent-hover); }
+  #load-more-btn:disabled { opacity: 0.5; cursor: default; }
+
+  /* ─── Date Divider ─── */
+  .date-divider {
+    display: flex;
+    align-items: center;
+    margin: 24px 16px 8px;
+    gap: 8px;
+  }
+  .date-divider .line {
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+  .date-divider .date-text {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  /* ─── Message Group ─── */
+  .message-group {
+    padding: 2px 16px 0;
+    position: relative;
+    transition: background 0.05s;
+  }
+  .message-group:hover { background: var(--bg-message-hover); }
+
+  /* First message in a group (with avatar + username) */
+  .message-group.first-in-group {
+    margin-top: 16px;
+    padding-top: 2px;
+  }
+
+  .message-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 0;
+  }
+
+  .avatar-col {
+    flex-shrink: 0;
+    width: 40px;
+    padding-top: 2px;
+  }
+
+  .avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    cursor: pointer;
+    transition: box-shadow 0.15s;
+  }
+  .avatar:hover { box-shadow: 0 0 0 2px var(--accent); }
+
+  .avatar-placeholder {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 16px;
+    color: white;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+
+  .message-content-col {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .username-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 2px;
+  }
+
+  .username {
+    font-weight: 500;
+    font-size: 16px;
+    color: var(--text-primary);
+    cursor: pointer;
+  }
+  .username:hover { text-decoration: underline; }
+
+  .username.bot-tag::after {
+    content: 'APP';
+    font-size: 9px;
+    font-weight: 500;
+    background: var(--accent);
+    color: white;
+    padding: 1px 4px;
+    border-radius: 3px;
+    margin-left: 4px;
+    vertical-align: middle;
+    letter-spacing: 0.5px;
+  }
+
+  .timestamp {
+    font-size: 11px;
+    color: var(--text-muted);
+    cursor: default;
+  }
+
+  /* Continued message (no header) */
+  .message-group.continued {
+    padding-left: 72px;
+  }
+  .message-group.continued:hover .hover-timestamp {
+    display: block;
+  }
+  .hover-timestamp {
+    display: none;
+    position: absolute;
+    left: 16px;
+    top: 4px;
+    font-size: 10px;
+    color: var(--text-muted);
+    width: 40px;
+    text-align: right;
+    cursor: default;
+  }
+
+  /* ─── Message Text ─── */
+  .message-text {
+    font-size: 16px;
+    line-height: 1.375;
+    color: var(--text-primary);
+    word-break: break-word;
+    white-space: pre-wrap;
+  }
+
+  .message-text a {
+    color: var(--text-link);
+    text-decoration: none;
+  }
+  .message-text a:hover { text-decoration: underline; }
+
+  .message-text code {
+    background: var(--bg-tertiary);
+    padding: 2px 5px;
+    border-radius: 3px;
+    font-size: 14px;
+    font-family: 'Consolas', 'Courier New', monospace;
+  }
+
+  .message-text pre {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 12px;
+    margin-top: 6px;
+    overflow-x: auto;
+    font-size: 13px;
+    font-family: 'Consolas', 'Courier New', monospace;
+    line-height: 1.45;
+  }
+
+  /* ─── Attachments ─── */
+  .attachments {
+    margin-top: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .attachment-image {
+    max-width: 520px;
+    max-height: 360px;
+    border-radius: 4px;
+    object-fit: contain;
+    cursor: zoom-in;
+    display: block;
+    background: var(--bg-secondary);
+  }
+
+  .attachment-file {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--attachment-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    max-width: 432px;
+  }
+
+  .attachment-file .file-icon {
+    font-size: 28px;
+    flex-shrink: 0;
+  }
+
+  .attachment-file .file-info { flex: 1; min-width: 0; }
+  .attachment-file .file-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-link);
+    text-decoration: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+  }
+  .attachment-file .file-name:hover { text-decoration: underline; }
+  .attachment-file .file-size { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+  /* ─── Embeds ─── */
+  .embed {
+    display: flex;
+    margin-top: 4px;
+    max-width: 520px;
+    background: var(--attachment-bg);
+    border-radius: 4px;
+    border-left: 4px solid var(--embed-border);
+    overflow: hidden;
+    padding: 12px 12px 12px 12px;
+  }
+
+  .embed-content { flex: 1; min-width: 0; }
+  .embed-provider { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .embed-title { font-size: 14px; font-weight: 600; color: var(--text-link); margin-bottom: 4px; }
+  .embed-title a { color: var(--text-link); text-decoration: none; }
+  .embed-title a:hover { text-decoration: underline; }
+  .embed-description { font-size: 13px; color: var(--text-secondary); line-height: 1.4; }
+  .embed-thumbnail { width: 80px; height: 80px; border-radius: 4px; object-fit: cover; margin-left: 12px; flex-shrink: 0; }
+
+  /* ─── Reactions ─── */
+  .reactions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 4px;
+  }
+
+  .reaction {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  .reaction:hover { background: var(--border); }
+  .reaction .emoji { font-size: 15px; }
+  .reaction .count { color: var(--text-secondary); font-weight: 500; }
+
+  /* ─── Image Lightbox ─── */
+  #lightbox {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 9999;
+    justify-content: center;
+    align-items: center;
+    cursor: zoom-out;
+  }
+  #lightbox.active { display: flex; }
+  #lightbox img {
+    max-width: 90vw;
+    max-height: 90vh;
+    border-radius: 4px;
+    object-fit: contain;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+  }
+  #lightbox-close {
+    position: absolute;
+    top: 16px;
+    right: 20px;
+    color: white;
+    font-size: 28px;
+    cursor: pointer;
+    line-height: 1;
+    opacity: 0.7;
+    transition: opacity 0.15s;
+  }
+  #lightbox-close:hover { opacity: 1; }
+
+  /* ─── Status Bar ─── */
+  #status-bar {
+    background: var(--bg-tertiary);
+    border-top: 1px solid var(--border);
+    padding: 6px 16px;
+    font-size: 12px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  #status-bar .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--green);
+    flex-shrink: 0;
+  }
+  #status-bar .dot.loading { background: var(--yellow); animation: pulse 1s infinite; }
+  #status-bar .dot.error { background: var(--red); }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* ─── Spinner overlay ─── */
+  #spinner {
+    position: fixed;
+    inset: 0;
+    background: var(--bg-primary);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    z-index: 100;
+    transition: opacity 0.4s;
+  }
+  #spinner.hidden { opacity: 0; pointer-events: none; }
+
+  .spinner-ring {
+    width: 48px; height: 48px;
+    border: 4px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  #spinner p { color: var(--text-muted); font-size: 14px; }
+
+  /* ─── Error state ─── */
+  #error-view {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    gap: 12px;
+    color: var(--text-muted);
+    font-size: 15px;
+  }
+  #error-view .err-icon { font-size: 48px; }
+  #error-view .err-msg { max-width: 400px; text-align: center; line-height: 1.5; }
+  #error-view code { font-size: 12px; background: var(--bg-secondary); padding: 8px 12px; border-radius: 4px; display: block; margin-top: 8px; color: var(--red); }
+</style>
+</head>
+<body>
+
+<div id="spinner">
+  <div class="spinner-ring"></div>
+  <p>Loading releases…</p>
+</div>
+
+<div id="channel-header">
+  <span class="hash">#</span>
+  <span class="channel-name" id="channel-name">releases</span>
+  <span class="channel-topic" id="channel-topic"></span>
+  <span class="msg-count" id="msg-count"></span>
+</div>
+
+<div id="messages-container">
+  <div id="error-view">
+    <div class="err-icon">⚠️</div>
+    <div class="err-msg">
+      Failed to load messages.
+      <code id="error-detail"></code>
+    </div>
+  </div>
+  <button id="load-more-btn" style="display:none">Load older messages</button>
+  <div id="messages-list"></div>
+</div>
+
+<div id="status-bar">
+  <div class="dot loading" id="status-dot"></div>
+  <span id="status-text">Connecting…</span>
+</div>
+
+<div id="lightbox">
+  <span id="lightbox-close">✕</span>
+  <img id="lightbox-img" src="" alt="">
+</div>
+
+<script>
+// ──────────────────────────────────────────
+// CONFIG  –  inject TOKEN server-side or set it here
+// If serving via a backend (Node/PHP/etc), replace the placeholder
+// with the actual token before sending to the client.
+// Example nginx/node approach: set window.DISCORD_TOKEN from env.
+// ──────────────────────────────────────────
+
+const GUILD   = '1093281735137054752';
+const CHANNEL = '1450312141750931457';
+const LIMIT   = 100; // messages per fetch (max 100)
+
+// ──────────────────────────────────────────
+const API = '/mm/api';
+let allMessages = [];
+let oldestId = null;
+let channelInfo = {};
+
+// ── Helpers ──────────────────────────────
+function cdnAvatar(user) {
+  if (user.avatar)
+    return `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.${user.avatar.startsWith('a_') ? 'gif' : 'webp'}?size=80`;
+  return null;
+}
+
+function defaultAvatarColor(username) {
+  const colors = ['#5865f2','#57f287','#fee75c','#eb459e','#ed4245','#9b59b6'];
+  let hash = 0;
+  for (const c of username) hash = hash * 31 + c.charCodeAt(0);
+  return colors[Math.abs(hash) % colors.length];
+}
+
+function fmtBytes(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+  return (b/1048576).toFixed(1) + ' MB';
+}
+
+function fmtTime(ts) {
+  const d = new Date(ts);
+  return d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+}
+
+function fmtDate(ts) {
+  const d = new Date(ts);
+  const today = new Date();
+  const yest  = new Date(); yest.setDate(yest.getDate()-1);
+  if (d.toDateString() === today.toDateString()) return 'Today';
+  if (d.toDateString() === yest.toDateString())  return 'Yesterday';
+  return d.toLocaleDateString([], {month:'long', day:'numeric', year:'numeric'});
+}
+
+function sameDay(a, b) {
+  const da = new Date(a), db = new Date(b);
+  return da.toDateString() === db.toDateString();
+}
+
+function sameAuthorGroup(a, b) {
+  if (!a || !b) return false;
+  if (a.author.id !== b.author.id) return false;
+  if (a.type !== b.type) return false;
+  const diff = Math.abs(new Date(b.timestamp) - new Date(a.timestamp));
+  return diff < 7 * 60 * 1000; // 7 min
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function parseMarkdown(text) {
+  // Very basic Discord markdown
+  text = escapeHtml(text);
+  // Code blocks
+  text = text.replace(/```(\w+)?\n?([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+  text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
+  // Bold / italic
+  text = text.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+  text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  text = text.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  text = text.replace(/__(.+?)__/g, '<u>$1</u>');
+  text = text.replace(/~~(.+?)~~/g, '<s>$1</s>');
+  // Links
+  text = text.replace(/\[(.+?)\]\((https?:\/\/[^\)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  text = text.replace(/(^|\s)(https?:\/\/[^\s<]+)/g, '$1<a href="$2" target="_blank" rel="noopener">$2</a>');
+  // User mentions
+  text = text.replace(/&lt;@!?(\d+)&gt;/g, '<span style="color:var(--accent);background:var(--mention-bg);padding:0 2px;border-radius:3px;">@user</span>');
+  // Channel mentions
+  text = text.replace(/&lt;#(\d+)&gt;/g, '<span style="color:var(--accent);">#channel</span>');
+  return text;
+}
+
+function fileIcon(name) {
+  const ext = (name.split('.').pop()||'').toLowerCase();
+  const icons = {
+    pdf:'📄', zip:'🗜️', rar:'🗜️', gz:'🗜️',
+    mp4:'🎬', mov:'🎬', mkv:'🎬', avi:'🎬',
+    mp3:'🎵', wav:'🎵', ogg:'🎵', flac:'🎵',
+    exe:'⚙️', msi:'⚙️', apk:'📱', dmg:'💿',
+    txt:'📝', md:'📝', json:'📋', xml:'📋', yaml:'📋', yml:'📋',
+    js:'📜', ts:'📜', py:'🐍', cs:'💎', cpp:'💎', c:'💎',
+    png:'🖼️', jpg:'🖼️', jpeg:'🖼️', gif:'🖼️', webp:'🖼️',
+    svg:'🎨', psd:'🎨', ai:'🎨',
+    doc:'📃', docx:'📃', xls:'📊', xlsx:'📊', ppt:'📑', pptx:'📑',
+  };
+  return icons[ext] || '📎';
+}
+
+// ── Build message DOM ────────────────────
+function buildMessage(msg, prevMsg) {
+  const isFirst = !sameAuthorGroup(prevMsg, msg);
+  const needsDateDivider = !prevMsg || !sameDay(prevMsg.timestamp, msg.timestamp);
+
+  const frag = document.createDocumentFragment();
+
+  if (needsDateDivider) {
+    const div = document.createElement('div');
+    div.className = 'date-divider';
+    div.innerHTML = `<div class="line"></div><div class="date-text">${fmtDate(msg.timestamp)}</div><div class="line"></div>`;
+    frag.appendChild(div);
+  }
+
+  const group = document.createElement('div');
+  group.className = 'message-group' + (isFirst ? ' first-in-group' : ' continued');
+  group.dataset.id = msg.id;
+
+  const user = msg.author;
+  const avatarUrl = cdnAvatar(user);
+  const initial = (user.global_name || user.username || '?')[0];
+
+  if (isFirst) {
+    // Full header with avatar + username
+    const header = document.createElement('div');
+    header.className = 'message-header';
+
+    const avatarCol = document.createElement('div');
+    avatarCol.className = 'avatar-col';
+    if (avatarUrl) {
+      const img = document.createElement('img');
+      img.className = 'avatar';
+      img.src = avatarUrl;
+      img.alt = user.username;
+      img.loading = 'lazy';
+      avatarCol.appendChild(img);
+    } else {
+      const ph = document.createElement('div');
+      ph.className = 'avatar-placeholder';
+      ph.textContent = initial;
+      ph.style.background = defaultAvatarColor(user.username);
+      avatarCol.appendChild(ph);
+    }
+
+    const contentCol = document.createElement('div');
+    contentCol.className = 'message-content-col';
+
+    const usernameRow = document.createElement('div');
+    usernameRow.className = 'username-row';
+
+    const uname = document.createElement('span');
+    uname.className = 'username' + (user.bot ? ' bot-tag' : '');
+    uname.textContent = user.global_name || user.username;
+
+    const ts = document.createElement('span');
+    ts.className = 'timestamp';
+    ts.title = new Date(msg.timestamp).toLocaleString();
+    ts.textContent = 'Today at ' + fmtTime(msg.timestamp);
+    // More accurate date
+    const msgDate = new Date(msg.timestamp);
+    const today = new Date();
+    if (msgDate.toDateString() !== today.toDateString()) {
+      ts.textContent = fmtDate(msg.timestamp) + ' at ' + fmtTime(msg.timestamp);
+    }
+
+    usernameRow.appendChild(uname);
+    usernameRow.appendChild(ts);
+    contentCol.appendChild(usernameRow);
+
+    appendMessageBody(contentCol, msg);
+
+    header.appendChild(avatarCol);
+    header.appendChild(contentCol);
+    group.appendChild(header);
+  } else {
+    // Hover timestamp
+    const hts = document.createElement('div');
+    hts.className = 'hover-timestamp';
+    hts.title = new Date(msg.timestamp).toLocaleString();
+    hts.textContent = fmtTime(msg.timestamp);
+    group.appendChild(hts);
+    appendMessageBody(group, msg);
+  }
+
+  frag.appendChild(group);
+  return frag;
+}
+
+function appendMessageBody(parent, msg) {
+  // Text content
+  if (msg.content && msg.content.trim()) {
+    const textEl = document.createElement('div');
+    textEl.className = 'message-text';
+    textEl.innerHTML = parseMarkdown(msg.content);
+    parent.appendChild(textEl);
+  }
+
+  // Attachments
+  if (msg.attachments && msg.attachments.length > 0) {
+    const attDiv = document.createElement('div');
+    attDiv.className = 'attachments';
+
+    for (const att of msg.attachments) {
+      const isImage = att.content_type && att.content_type.startsWith('image/');
+      if (isImage) {
+        const img = document.createElement('img');
+        img.className = 'attachment-image';
+        img.src = att.url;
+        img.alt = att.filename;
+        img.loading = 'lazy';
+        if (att.width && att.height) {
+          const maxW = 520, maxH = 360;
+          let w = att.width, h = att.height;
+          if (w > maxW) { h = h * maxW / w; w = maxW; }
+          if (h > maxH) { w = w * maxH / h; h = maxH; }
+          img.style.width = w + 'px';
+          img.style.height = h + 'px';
+        }
+        img.addEventListener('click', () => openLightbox(att.url));
+        attDiv.appendChild(img);
+      } else {
+        const fileDiv = document.createElement('div');
+        fileDiv.className = 'attachment-file';
+        fileDiv.innerHTML = `
+          <div class="file-icon">${fileIcon(att.filename)}</div>
+          <div class="file-info">
+            <a class="file-name" href="${att.url}" target="_blank" rel="noopener" download="${escapeHtml(att.filename)}">${escapeHtml(att.filename)}</a>
+            <div class="file-size">${fmtBytes(att.size)}</div>
+          </div>`;
+        attDiv.appendChild(fileDiv);
+      }
+    }
+    parent.appendChild(attDiv);
+  }
+
+  // Embeds
+  if (msg.embeds && msg.embeds.length > 0) {
+    for (const emb of msg.embeds) {
+      if (emb.type === 'gifv' || emb.type === 'image') {
+        if (emb.thumbnail || emb.image) {
+          const url = (emb.image || emb.thumbnail).url;
+          const img = document.createElement('img');
+          img.className = 'attachment-image';
+          img.src = url;
+          img.loading = 'lazy';
+          img.style.maxWidth = '400px';
+          img.addEventListener('click', () => openLightbox(url));
+          parent.appendChild(img);
+        }
+        continue;
+      }
+      if (!emb.title && !emb.description && !emb.url) continue;
+      const embDiv = document.createElement('div');
+      embDiv.className = 'embed';
+      const color = emb.color ? '#' + emb.color.toString(16).padStart(6,'0') : 'var(--embed-border)';
+      embDiv.style.borderLeftColor = color;
+
+      let html = '<div class="embed-content">';
+      if (emb.provider?.name) html += `<div class="embed-provider">${escapeHtml(emb.provider.name)}</div>`;
+      if (emb.title) html += `<div class="embed-title">${emb.url ? `<a href="${emb.url}" target="_blank" rel="noopener">${escapeHtml(emb.title)}</a>` : escapeHtml(emb.title)}</div>`;
+      if (emb.description) html += `<div class="embed-description">${parseMarkdown(emb.description.slice(0,200))}</div>`;
+      html += '</div>';
+      if (emb.thumbnail?.url) html += `<img class="embed-thumbnail" src="${emb.thumbnail.url}" loading="lazy">`;
+      embDiv.innerHTML = html;
+      parent.appendChild(embDiv);
+    }
+  }
+
+  // Reactions
+  if (msg.reactions && msg.reactions.length > 0) {
+    const reactDiv = document.createElement('div');
+    reactDiv.className = 'reactions';
+    for (const r of msg.reactions) {
+      const emoji = r.emoji.id
+        ? `<img src="https://cdn.discordapp.com/emojis/${r.emoji.id}.webp?size=16" style="width:16px;height:16px;vertical-align:middle">`
+        : r.emoji.name;
+      const span = document.createElement('div');
+      span.className = 'reaction';
+      span.innerHTML = `<span class="emoji">${emoji}</span><span class="count">${r.count}</span>`;
+      reactDiv.appendChild(span);
+    }
+    parent.appendChild(reactDiv);
+  }
+}
+
+// ── Fetch & Render ───────────────────────
+async function fetchMessages(before = null) {
+  let url = `${API}/messages?limit=${LIMIT}`;
+  if (before) url += `&before=${before}`;
+
+  const res = await fetch(url, {
+    headers: { 'Content-Type': 'application/json' }
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(()=>({}));
+    throw new Error(`${res.status}: ${err.message || res.statusText}`);
+  }
+
+  return await res.json();
+}
+
+async function fetchChannelInfo() {
+  const res = await fetch(`${API}/channels/${CHANNEL}`, {
+    headers: { 'Content-Type': 'application/json' }
+  });
+  if (res.ok) return await res.json();
+  return {};
+}
+
+function renderMessages(msgs, prepend = false) {
+  const list = document.getElementById('messages-list');
+  const scrollEl = document.getElementById('messages-container');
+  const prevScrollHeight = scrollEl.scrollHeight;
+
+  // msgs from API come newest-first; reverse for chronological
+  const sorted = [...msgs].reverse();
+
+  if (prepend) {
+    // Insert before existing messages
+    const frag = document.createDocumentFragment();
+    for (let i = 0; i < sorted.length; i++) {
+      frag.appendChild(buildMessage(sorted[i], sorted[i-1]));
+    }
+    list.insertBefore(frag, list.firstChild);
+    // Maintain scroll position
+    scrollEl.scrollTop = scrollEl.scrollHeight - prevScrollHeight;
+  } else {
+    const frag = document.createDocumentFragment();
+    const prevLast = allMessages[allMessages.length - 1];
+    for (let i = 0; i < sorted.length; i++) {
+      const prev = i === 0 ? prevLast : sorted[i-1];
+      frag.appendChild(buildMessage(sorted[i], prev));
+    }
+    list.appendChild(frag);
+    // Auto-scroll to bottom on first load
+    scrollEl.scrollTop = scrollEl.scrollHeight;
+  }
+}
+
+function setStatus(text, state = 'ok') {
+  const dot = document.getElementById('status-dot');
+  const stEl = document.getElementById('status-text');
+  dot.className = 'dot' + (state === 'loading' ? ' loading' : state === 'error' ? ' error' : '');
+  stEl.textContent = text;
+}
+
+async function init() {
+  try {
+    setStatus('Fetching channel info…', 'loading');
+
+    // Channel info
+    channelInfo = await fetchChannelInfo();
+    if (channelInfo.name) document.getElementById('channel-name').textContent = channelInfo.name;
+    if (channelInfo.topic) {
+      const topicEl = document.getElementById('channel-topic');
+      topicEl.textContent = channelInfo.topic.slice(0,80) + (channelInfo.topic.length > 80 ? '…' : '');
+    }
+
+    setStatus('Loading messages…', 'loading');
+
+    const msgs = await fetchMessages();
+    if (msgs.length === 0) {
+      setStatus('No messages found.', 'ok');
+      document.getElementById('spinner').classList.add('hidden');
+      return;
+    }
+
+    allMessages = msgs;
+    renderMessages(msgs, false);
+
+    document.getElementById('msg-count').textContent = allMessages.length + ' messages';
+
+    if (msgs.length === LIMIT) {
+      document.getElementById('load-more-btn').style.display = 'block';
+      oldestId = [...msgs].sort((a,b)=>a.id.localeCompare(b.id))[0].id;
+    }
+
+    setStatus(`${allMessages.length} messages loaded • ${channelInfo.name || 'releases'}`, 'ok');
+    document.getElementById('spinner').classList.add('hidden');
+
+  } catch (e) {
+    console.error(e);
+    document.getElementById('spinner').classList.add('hidden');
+    document.getElementById('error-view').style.display = 'flex';
+    document.getElementById('error-detail').textContent = e.message;
+    setStatus('Failed to load: ' + e.message, 'error');
+  }
+}
+
+// ── Load More ────────────────────────────
+document.getElementById('load-more-btn').addEventListener('click', async function() {
+  this.disabled = true;
+  this.textContent = 'Loading…';
+  setStatus('Loading older messages…', 'loading');
+  try {
+    const msgs = await fetchMessages(oldestId);
+    if (msgs.length > 0) {
+      allMessages = [...allMessages, ...msgs];
+      renderMessages(msgs, true);
+      document.getElementById('msg-count').textContent = allMessages.length + ' messages';
+      oldestId = [...msgs].sort((a,b)=>a.id.localeCompare(b.id))[0].id;
+      if (msgs.length < LIMIT) {
+        this.style.display = 'none';
+      } else {
+        this.disabled = false;
+        this.textContent = 'Load older messages';
+      }
+      setStatus(`${allMessages.length} messages loaded`, 'ok');
+    } else {
+      this.style.display = 'none';
+      setStatus('All messages loaded', 'ok');
+    }
+  } catch(e) {
+    this.disabled = false;
+    this.textContent = 'Load older messages';
+    setStatus('Error: ' + e.message, 'error');
+  }
+});
+
+// ── Lightbox ─────────────────────────────
+function openLightbox(url) {
+  document.getElementById('lightbox-img').src = url;
+  document.getElementById('lightbox').classList.add('active');
+}
+document.getElementById('lightbox').addEventListener('click', function(e) {
+  if (e.target === this || e.target.id === 'lightbox-close') {
+    this.classList.remove('active');
+    document.getElementById('lightbox-img').src = '';
+  }
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.getElementById('lightbox').classList.remove('active');
+});
+
+// ── Go ───────────────────────────────────
+init();
+</script>
+</body>
+</html>
